@@ -3,52 +3,81 @@ import java.util.List;
 public class Evaluador {
 
     public void evaluarModelo(ClasificadorBayesiano modelo, List<Hongo> datosPrueba) {
-        int vp = 0; // Verdaderos Positivos (Era venenosos y predijo venenoso)
-        int vn = 0; // Verdaderos Negativos (Era comestible y predijo comestible)
-        int fp = 0; // Falsos Positivos (Era comestible y predijo venenoso)
-        int fn = 0; // Falsos Negativos (Era venenoso y predijo comestible - ¡PELIGROSO!)
+        int vp = 0; // Real p, Predicho p
+        int vn = 0; // Real e, Predicho e
+        int fp = 0; // Real e, Predicho p
+        int fn = 0; // Real p, Predicho e
+
+        System.out.println("\n====================================================================================================");
+        System.out.println("EVALUACIÓN COMPLETA DEL MODELO BAYESIANO");
+        System.out.println("====================================================================================================");
+        System.out.println("🧪 Evaluando " + datosPrueba.size() + " instancias de prueba...");
 
         for (Hongo real : datosPrueba) {
             String prediccion = modelo.predecir(real.getAtributos());
             String claseReal = real.getClase();
 
-            if (claseReal.equals("p")) { // Caso Positivo: Es Venenoso
-                if (prediccion.equals("p")) {
-                    vp++;
-                } else {
-                    fn++;
-                }
-            } else { // Caso Negativo: Es Comestible
-                if (prediccion.equals("e")) {
-                    vn++;
-                } else {
-                    fp++;
-                }
+            if (claseReal.equals("p")) {
+                if (prediccion.equals("p")) vp++;
+                else fn++;
+            } else {
+                if (prediccion.equals("e")) vn++;
+                else fp++;
             }
         }
 
         // Cálculos
-        double exactitud = (double) (vp + vn) / (vp + vn + fp + fn);
-        // Precisión: De los que dije que eran venenosos, ¿cuántos lo eran?
+        double total = vp + vn + fp + fn;
+        double exactitud = (vp + vn) / total;
         double precision = (vp + fp) == 0 ? 0 : (double) vp / (vp + fp);
-        // Sensibilidad: De todos los venenosos que había, ¿cuántos detecté?
         double sensibilidad = (vp + fn) == 0 ? 0 : (double) vp / (vp + fn);
+        double especificidad = (vn + fp) == 0 ? 0 : (double) vn / (vn + fp);
 
-        System.out.println("---- REPORTE DE EVALUACIÓN ----");
-        System.out.println("Total datos probados: " + datosPrueba.size());
-        System.out.println("Verdaderos Venenosos (VP): " + vp);
-        System.out.println("Falsos Venenosos (FP): " + fp);
-        System.out.println("Verdaderos Comestibles (VN): " + vn);
-        System.out.println("Falsos Comestibles (FN): " + fn);
-        System.out.println("-------------------------------");
-        System.out.printf("Exactitud (Accuracy):   %.4f  (%.2f%%)\n", exactitud, exactitud * 100);
-        System.out.printf("Precisión:              %.4f  (%.2f%%)\n", precision, precision * 100);
-        System.out.printf("Sensibilidad (Recall):  %.4f  (%.2f%%)\n", sensibilidad, sensibilidad * 100);
+        // Imprimir Matriz Gráfica
+        System.out.println("\n********************************** MATRIZ DE CONFUSIÓN DETALLADA ***********************************");
+        System.out.println("\n                 PREDICCIÓN DEL MODELO");
+        System.out.println("                ╔═════════════════════════════════════════════╗");
+        System.out.println("                ║             p             e                 ║");
+        System.out.println("╔════════════════════╬═════════════════════════════════════════════╣");
+        System.out.printf("║REALIDAD p          ║   VP = %5d       │   FN = %5d        ║\n", vp, fn);
+        System.out.println("║                    ║                             │                         ║");
+        System.out.printf("║REALIDAD e          ║   FP = %5d       │   VN = %5d        ║\n", fp, vn);
+        System.out.println("╚════════════════════╩═════════════════════════════════════════════╝");
 
+        System.out.println("\nEXPLICACIÓN:");
+        System.out.println("   VP: Venenosos detectados correctamente.");
+        System.out.println("   VN: Comestibles detectados correctamente.");
+        System.out.println("   FP: Comestibles confundidos como venenosos (Falsa alarma).");
+        System.out.println("   FN: Venenosos confundidos como comestibles (¡PELIGRO MORTAL!).");
+
+        System.out.println("\n******************************** MÉTRICAS DE EVALUACIÓN DETALLADAS *********************************");
+
+        System.out.printf("EXACTITUD (Accuracy)    = %.6f (%.2f%%)\n", exactitud, exactitud*100);
+        System.out.println("   Fórmula: (VP + VN) / Total");
+
+        System.out.printf("PRECISIÓN (Precision)   = %.6f (%.2f%%)\n", precision, precision*100);
+        System.out.println("   Fórmula: VP / (VP + FP) -> Confiabilidad cuando dice 'venenoso'");
+
+        System.out.printf("🔍 SENSIBILIDAD (Recall)= %.6f (%.2f%%)\n", sensibilidad, sensibilidad*100);
+        System.out.println("   Fórmula: VP / (VP + FN) -> Capacidad de encontrar todo el veneno");
+
+        System.out.printf("ESPECIFICIDAD           = %.6f (%.2f%%)\n", especificidad, especificidad*100);
+        System.out.println("   Fórmula: VN / (VN + FP)");
+
+        System.out.println("\n*************************************** CONCLUSIÓN ****************************************");
         if (exactitud > 0.9) {
-            System.out.println("CONCLUSIÓN: El algoritmo Bayesiano ES una buena metodología para este set de datos.");
+            System.out.println("RESULTADO: **EXCELENTE**");
+            System.out.println("El clasificador Bayesiano es una BUENA metodología para este dataset.");
         } else {
-            System.out.println("CONCLUSIÓN: El algoritmo Bayesiano NO tuvo un desempeño óptimo.");
+            System.out.println("RESULTADO: REGULAR");
+        }
+
+        System.out.println("\n*** ANÁLISIS DE SEGURIDAD ***");
+        if (fn > 0) {
+            System.out.println("PELIGRO: Se encontraron " + fn + " hongos venenosos clasificados como comestibles.");
+            System.out.println("No se recomienda confiar ciegamente para consumo humano sin revisión experta.");
+        } else {
+            System.out.println("SEGURIDAD ALTA: El modelo no dejó pasar ningún hongo venenoso en esta prueba.");
         }
     }
 }

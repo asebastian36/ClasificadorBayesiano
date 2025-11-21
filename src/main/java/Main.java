@@ -5,43 +5,53 @@ import java.util.Scanner;
 public class Main {
 
     public static void main(String[] args) {
+        System.out.println("================================================================================");
+        System.out.println("CLASIFICADOR BAYESIANO PARA HONGOS - INICIANDO SISTEMA");
+        System.out.println("================================================================================");
+
         CargadorDatos cargador = new CargadorDatos();
-        // Asegúrate de que el archivo esté en la carpeta raíz del proyecto
         List<Hongo> datos = cargador.cargarDatos("agaricus-lepiota.data");
 
         if (datos.isEmpty()) {
-            System.out.println("No se encontraron datos. Verifica el archivo.");
+            System.out.println("Error: No hay datos.");
             return;
         }
 
-        // Barajamos los datos para que el entrenamiento sea aleatorio
+        // Mezclar datos
         Collections.shuffle(datos);
 
-        // Dividir datos: 70% entrenamiento, 30% prueba
+        // Dividir 70/30
         int puntoCorte = (int) (datos.size() * 0.7);
         List<Hongo> setEntrenamiento = datos.subList(0, puntoCorte);
         List<Hongo> setPrueba = datos.subList(puntoCorte, datos.size());
 
-        // Entrenar modelo
+        // Entrenar
         ClasificadorBayesiano clasificador = new ClasificadorBayesiano();
         clasificador.entrenar(setEntrenamiento);
+
+        // MOSTRAR TABLAS DE FRECUENCIA AUTOMÁTICAMENTE AL INICIO
+        clasificador.imprimirReporteEntrenamiento();
 
         Scanner scanner = new Scanner(System.in);
         boolean salir = false;
 
         while (!salir) {
-            System.out.println("\n--- SISTEMA DE CLASIFICACIÓN DE HONGOS (NAIVE BAYES) ---");
-            System.out.println("1. Ingresar un hongo manualmente");
-            System.out.println("2. Evaluar desempeño del algoritmo (Dataset de prueba)");
+            System.out.println("\n\n================== MENÚ PRINCIPAL ==================");
+            System.out.println("1. Clasificar un nuevo hongo (Ver fórmula paso a paso)");
+            System.out.println("2. Evaluar rendimiento del modelo (Matriz de confusión)");
             System.out.println("3. Salir");
-            System.out.print("Elige una opción: ");
+            System.out.print("Seleccione opción: ");
 
-            int opcion = scanner.nextInt();
-            scanner.nextLine(); // Consumir salto de línea
+            int opcion = 0;
+            try {
+                opcion = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                continue;
+            }
 
             switch (opcion) {
                 case 1:
-                    predecirManual(scanner, clasificador);
+                    clasificarManual(scanner, clasificador);
                     break;
                 case 2:
                     Evaluador evaluador = new Evaluador();
@@ -51,28 +61,28 @@ public class Main {
                     salir = true;
                     break;
                 default:
-                    System.out.println("Opción no válida.");
+                    System.out.println("Opción inválida.");
             }
         }
         scanner.close();
     }
 
-    private static void predecirManual(Scanner scanner, ClasificadorBayesiano clasificador) {
-        System.out.println("Ingresa los 22 atributos separados por coma (ej: x,s,n,t,p,f,c,n,k,e,e,s,s,w,w,p,w,o,p,k,s,u):");
-        System.out.println("O copia y pega una línea del archivo (sin la primera letra de la clase):");
-        String entrada = scanner.nextLine();
-        String[] atributos = entrada.split(",");
+    private static void clasificarManual(Scanner scanner, ClasificadorBayesiano clasificador) {
+        System.out.println("\n--- CLASIFICACIÓN MANUAL ---");
+        System.out.println("Ingrese los 22 atributos separados por comas (ej: x,s,n,t,p,f,c,n,k,e,e,s,s,w,w,p,w,o,p,k,s,u):");
+        System.out.println("(O pegue una línea del archivo dataset quitando la primera letra)");
+
+        String linea = scanner.nextLine();
+        String[] atributos = linea.split(",");
+
+        // Limpieza de espacios
+        for(int i=0; i<atributos.length; i++) atributos[i] = atributos[i].trim();
 
         if (atributos.length != 22) {
-            System.out.println("ERROR: Debes ingresar exactamente 22 atributos. Ingresaste: " + atributos.length);
+            System.out.println("ERROR: Se esperaban 22 atributos, se recibieron " + atributos.length);
             return;
         }
 
-        // Limpiar espacios en blanco por si acaso
-        for(int i=0; i<atributos.length; i++) atributos[i] = atributos[i].trim();
-
-        String resultado = clasificador.predecir(atributos);
-        String nombre = resultado.equals("p") ? "VENENOSO (Poisonous)" : "COMESTIBLE (Edible)";
-        System.out.println(">>> Predicción del sistema: " + nombre);
+        clasificador.predecirConDetalle(atributos);
     }
 }
