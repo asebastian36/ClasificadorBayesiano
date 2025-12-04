@@ -5,84 +5,46 @@ import java.util.Scanner;
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("================================================================================");
-        System.out.println("CLASIFICADOR BAYESIANO PARA HONGOS - INICIANDO SISTEMA");
-        System.out.println("================================================================================");
-
         CargadorDatos cargador = new CargadorDatos();
         List<Hongo> datos = cargador.cargarDatos("agaricus-lepiota.data");
 
-        if (datos.isEmpty()) {
-            System.out.println("Error: No hay datos.");
-            return;
-        }
+        if (datos.isEmpty()) return;
 
-        // Mezclar datos
         Collections.shuffle(datos);
+        int corte = (int) (datos.size() * 0.7);
+        List<Hongo> train = datos.subList(0, corte);
+        List<Hongo> test = datos.subList(corte, datos.size());
 
-        // Dividir 70/30
-        int puntoCorte = (int) (datos.size() * 0.7);
-        List<Hongo> setEntrenamiento = datos.subList(0, puntoCorte);
-        List<Hongo> setPrueba = datos.subList(puntoCorte, datos.size());
-
-        // Entrenar
         ClasificadorBayesiano clasificador = new ClasificadorBayesiano();
-        clasificador.entrenar(setEntrenamiento);
-
-        // MOSTRAR TABLAS DE FRECUENCIA AUTOMÁTICAMENTE AL INICIO
+        clasificador.entrenar(train);
         clasificador.imprimirReporteEntrenamiento();
 
-        Scanner scanner = new Scanner(System.in);
-        boolean salir = false;
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.println("\n1. Clasificar manual | 2. Evaluar | 3. Salir");
+            String input = sc.nextLine();
 
-        while (!salir) {
-            System.out.println("\n\n================== MENÚ PRINCIPAL ==================");
-            System.out.println("1. Clasificar un nuevo hongo (Ver fórmula paso a paso)");
-            System.out.println("2. Evaluar rendimiento del modelo (Matriz de confusión)");
-            System.out.println("3. Salir");
-            System.out.print("Seleccione opción: ");
-
-            int opcion = 0;
-            try {
-                opcion = Integer.parseInt(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                continue;
-            }
-
-            switch (opcion) {
-                case 1:
-                    clasificarManual(scanner, clasificador);
-                    break;
-                case 2:
-                    Evaluador evaluador = new Evaluador();
-                    evaluador.evaluarModelo(clasificador, setPrueba);
-                    break;
-                case 3:
-                    salir = true;
-                    break;
-                default:
-                    System.out.println("Opción inválida.");
+            if (input.equals("1")) {
+                clasificarManual(sc, clasificador);
+            } else if (input.equals("2")) {
+                new Evaluador().evaluarModelo(clasificador, test);
+            } else if (input.equals("3")) {
+                break;
             }
         }
-        scanner.close();
+        sc.close();
     }
 
-    private static void clasificarManual(Scanner scanner, ClasificadorBayesiano clasificador) {
-        System.out.println("\n--- CLASIFICACIÓN MANUAL ---");
-        System.out.println("Ingrese los 22 atributos separados por comas (ej: x,s,n,t,p,f,c,n,k,e,e,s,s,w,w,p,w,o,p,k,s,u):");
-        System.out.println("(O pegue una línea del archivo dataset quitando la primera letra)");
+    private static void clasificarManual(Scanner sc, ClasificadorBayesiano modelo) {
+        System.out.println("Ingrese atributos (separados por coma):");
+        String linea = sc.nextLine();
+        String[] attrs = linea.split(",");
 
-        String linea = scanner.nextLine();
-        String[] atributos = linea.split(",");
-
-        // Limpieza de espacios
-        for(int i=0; i<atributos.length; i++) atributos[i] = atributos[i].trim();
-
-        if (atributos.length != 22) {
-            System.out.println("ERROR: Se esperaban 22 atributos, se recibieron " + atributos.length);
-            return;
+        if (attrs.length == 22) {
+            for(int i=0; i<22; i++) attrs[i] = attrs[i].trim();
+            modelo.clasificar(attrs, true);
+        } else {
+            System.out.println("Error: Se requieren 22 atributos.");
         }
-
-        clasificador.predecirConDetalle(atributos);
     }
 }

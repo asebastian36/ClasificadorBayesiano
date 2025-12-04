@@ -1,17 +1,10 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ClasificadorBayesiano {
 
     private int totalEdible = 0;
     private int totalPoisonous = 0;
     private int totalRegistros = 0;
-
-    // Listas de mapas para contar frecuencias por columna
     private List<Map<String, Integer>> conteosEdible;
     private List<Map<String, Integer>> conteosPoisonous;
 
@@ -24,162 +17,99 @@ public class ClasificadorBayesiano {
         }
     }
 
-    public void entrenar(List<Hongo> datosEntrenamiento) {
-        System.out.println("Entrenando con " + datosEntrenamiento.size() + " instancias...");
-        System.out.println("Procesando 22 atributos...");
+    public void entrenar(List<Hongo> datos) {
+        System.out.println("Entrenando con " + datos.size() + " instancias...");
+        totalRegistros = datos.size();
 
-        // Reiniciar contadores
+        // Limpieza previa
         totalEdible = 0;
         totalPoisonous = 0;
-        totalRegistros = 0;
-        for(Map<String, Integer> m : conteosEdible) m.clear();
-        for(Map<String, Integer> m : conteosPoisonous) m.clear();
+        for (Map<String, Integer> m : conteosEdible) m.clear();
+        for (Map<String, Integer> m : conteosPoisonous) m.clear();
 
-        int procesados = 0;
-        for (Hongo h : datosEntrenamiento) {
-            totalRegistros++;
+        for (Hongo h : datos) {
             String[] attrs = h.getAtributos();
-
             if (h.getClase().equals("e")) {
                 totalEdible++;
-                for (int i = 0; i < attrs.length; i++) {
-                    conteosEdible.get(i).put(attrs[i], conteosEdible.get(i).getOrDefault(attrs[i], 0) + 1);
-                }
+                actualizarConteos(conteosEdible, attrs);
             } else {
                 totalPoisonous++;
-                for (int i = 0; i < attrs.length; i++) {
-                    conteosPoisonous.get(i).put(attrs[i], conteosPoisonous.get(i).getOrDefault(attrs[i], 0) + 1);
-                }
-            }
-
-            procesados++;
-            if (procesados % 2000 == 0) {
-                System.out.println("  Procesadas " + procesados + " instancias...");
+                actualizarConteos(conteosPoisonous, attrs);
             }
         }
-        System.out.println("Modelo entrenado exitosamente");
+        System.out.println("Modelo entrenado.");
     }
 
-    // --- NUEVO: Método para imprimir el reporte de entrenamiento idéntico a la referencia ---
-    public void imprimirReporteEntrenamiento() {
-        System.out.println("\n==================================================");
-        System.out.println("PROBABILIDADES A PRIORI P(C_k)");
-        System.out.println("==================================================");
-        System.out.println("C₁ = p (venenoso), C₂ = e (comestible)");
-        double pP = (double) totalPoisonous / totalRegistros;
-        double pE = (double) totalEdible / totalRegistros;
-        System.out.printf("P(C₁) = P(p) = %d/%d = %.6f\n", totalPoisonous, totalRegistros, pP);
-        System.out.printf("P(C₂) = P(e) = %d/%d = %.6f\n", totalEdible, totalRegistros, pE);
-
-        System.out.println("\n================================================================================");
-        System.out.println("TABLAS DE FRECUENCIA COMPLETAS PARA EL CÁLCULO BAYESIANO");
-        System.out.println("================================================================================");
-
-        for (int i = 0; i < 22; i++) {
-            System.out.println("\nTABLA DE FRECUENCIA COMPLETA - A" + (i + 1) + " (a_" + (i + 1) + ")");
-            System.out.println("+-------------------------------------------------------+");
-            System.out.println("| a" + (i + 1) + "                    | C₁ (p) | C₂ (e) | Prob. C₁ | Prob. C₂ |");
-            System.out.println("+-------------------------------------------------------+");
-
-            // Obtener todos los valores únicos posibles para este atributo (unión de ambos mapas)
-            Set<String> valoresUnicos = new HashSet<>();
-            valoresUnicos.addAll(conteosEdible.get(i).keySet());
-            valoresUnicos.addAll(conteosPoisonous.get(i).keySet());
-
-            for (String val : valoresUnicos) {
-                int countP = conteosPoisonous.get(i).getOrDefault(val, 0);
-                int countE = conteosEdible.get(i).getOrDefault(val, 0);
-
-                // Calcular prob condicional con suavizado (Laplace smoothing básico si es 0) para visualización
-                double probP = (countP == 0) ? 0.0003 : (double) countP / totalPoisonous;
-                double probE = (countE == 0) ? 0.0002 : (double) countE / totalEdible;
-
-                System.out.printf("| %-20s | %-4d/%-4d | %-4d/%-4d |   %.4f |   %.4f |\n",
-                        val, countP, totalPoisonous, countE, totalEdible, probP, probE);
-            }
-            System.out.println("+-------------------------------------------------------+");
-        }
-    }
-
-    // Predicción simple para evaluación masiva
-    public String predecir(String[] atributos) {
-        double probEdible = Math.log((double) totalEdible / totalRegistros);
-        double probPoisonous = Math.log((double) totalPoisonous / totalRegistros);
-
+    private void actualizarConteos(List<Map<String, Integer>> mapas, String[] atributos) {
         for (int i = 0; i < atributos.length; i++) {
-            String val = atributos[i];
-            double countE = conteosEdible.get(i).getOrDefault(val, 0);
-            if (countE == 0) countE = 0.5; // Suavizado leve
-            probEdible += Math.log(countE / totalEdible);
-
-            double countP = conteosPoisonous.get(i).getOrDefault(val, 0);
-            if (countP == 0) countP = 0.5;
-            probPoisonous += Math.log(countP / totalPoisonous);
+            mapas.get(i).put(atributos[i], mapas.get(i).getOrDefault(atributos[i], 0) + 1);
         }
-
-        return (probPoisonous > probEdible) ? "p" : "e";
     }
 
-    // --- NUEVO: Predicción detallada paso a paso para el usuario ---
-    public String predecirConDetalle(String[] atributos) {
-        System.out.println("\n================================================================================");
-        System.out.println("SUSTITUCIÓN COMPLETA DE LA FÓRMULA DE BAYES");
-        System.out.println("================================================================================");
+    public void imprimirReporteEntrenamiento() {
+        System.out.println("\n=== PROBABILIDADES A PRIORI ===");
+        System.out.printf("P(e) = %.4f, P(p) = %.4f\n", (double)totalEdible/totalRegistros, (double)totalPoisonous/totalRegistros);
 
-        double pP = (double) totalPoisonous / totalRegistros;
-        double pE = (double) totalEdible / totalRegistros;
+        System.out.println("\n=== TABLAS DE FRECUENCIA COMPLETAS ===");
 
-        // Usaremos arrays para guardar las probs individuales y mostrarlas
-        double[] probsP = new double[22];
-        double[] probsE = new double[22];
-
-        // Cálculo de probabilidades condicionales
+        // Recorremos los 22 atributos
         for (int i = 0; i < 22; i++) {
-            String val = atributos[i];
+            System.out.println("\n--- Atributo " + (i + 1) + " ---");
 
-            double cP = conteosPoisonous.get(i).getOrDefault(val, 0);
-            if (cP == 0) cP = 0.5; // Suavizado para evitar cero absoluto
-            probsP[i] = cP / totalPoisonous;
+            // Obtenemos todas las letras posibles que aparecieron en esa columna (unión de comestibles y venenosos)
+            Set<String> valoresPosibles = new HashSet<>();
+            valoresPosibles.addAll(conteosEdible.get(i).keySet());
+            valoresPosibles.addAll(conteosPoisonous.get(i).keySet());
 
-            double cE = conteosEdible.get(i).getOrDefault(val, 0);
-            if (cE == 0) cE = 0.5;
-            probsE[i] = cE / totalEdible;
+            System.out.println(" Valor | P(x|p) | P(x|e)");
+            System.out.println("-------|--------|--------");
+
+            for (String val : valoresPosibles) {
+                // Usamos el método auxiliar que ya tenemos para calcular la probabilidad
+                double p = obtenerProbabilidad(conteosPoisonous.get(i), val, totalPoisonous);
+                double e = obtenerProbabilidad(conteosEdible.get(i), val, totalEdible);
+
+                System.out.printf("   %s   | %.4f | %.4f\n", val, p, e);
+            }
+        }
+    }
+
+    public String clasificar(String[] atributos, boolean mostrarDetalle) {
+        double scoreP = (double) totalPoisonous / totalRegistros;
+        double scoreE = (double) totalEdible / totalRegistros;
+
+        if (mostrarDetalle) {
+            System.out.println("\n=== CÁLCULO PASO A PASO ===");
+            System.out.printf("Prior P(p): %.6f\n", scoreP);
+            System.out.printf("Prior P(e): %.6f\n", scoreE);
         }
 
-        System.out.println("\n**************************** CÁLCULO DE NUMERADORES ****************************");
-        System.out.println("\n🔹 Para C_k = 'p' (venenoso):");
-        double numeradorP = pP;
-        for(int i=0; i<22; i++) {
-            System.out.printf("  P(a%d=%s|p) = %.6f\n", (i+1), atributos[i], probsP[i]);
-            numeradorP *= probsP[i];
+        for (int i = 0; i < 22; i++) {
+            double p = obtenerProbabilidad(conteosPoisonous.get(i), atributos[i], totalPoisonous);
+            double e = obtenerProbabilidad(conteosEdible.get(i), atributos[i], totalEdible);
+
+            scoreP *= p;
+            scoreE *= e;
+
+            if (mostrarDetalle) {
+                System.out.printf("Attr[%d]=%s -> P(x|p):%.4f, P(x|e):%.4f\n", (i+1), atributos[i], p, e);
+            }
         }
-        System.out.printf("\nNumerador_p = %.6f * Π P(a_i|p) = %.10f\n", pP, numeradorP);
 
-        System.out.println("\n🔹 Para C_k = 'e' (comestible):");
-        double numeradorE = pE;
-        for(int i=0; i<22; i++) {
-            System.out.printf("  P(a%d=%s|e) = %.6f\n", (i+1), atributos[i], probsE[i]);
-            numeradorE *= probsE[i];
+        if (mostrarDetalle) {
+            double total = scoreP + scoreE;
+            System.out.printf("\nScore Final P: %.10f (%.2f%%)\n", scoreP, (scoreP/total)*100);
+            System.out.printf("Score Final E: %.10f (%.2f%%)\n", scoreE, (scoreE/total)*100);
+            String ganador = scoreP > scoreE ? "VENENOSO" : "COMESTIBLE";
+            System.out.println(">>> RESULTADO: " + ganador);
         }
-        System.out.printf("\nNumerador_e = %.6f * Π P(a_i|e) = %.10f\n", pE, numeradorE);
 
-        System.out.println("\n*************************** CÁLCULO DEL DENOMINADOR ****************************");
-        double denominador = numeradorP + numeradorE;
-        System.out.printf("Denominador = %.10f + %.10f = %.10f\n", numeradorP, numeradorE, denominador);
+        return scoreP > scoreE ? "p" : "e";
+    }
 
-        System.out.println("\n**************************** PROBABILIDADES FINALES ****************************");
-        double finalP = numeradorP / denominador;
-        double finalE = numeradorE / denominador;
-
-        System.out.printf("P(p | atributos) = %.8f (%.4f%%)\n", finalP, finalP*100);
-        System.out.printf("P(e | atributos) = %.8f (%.4f%%)\n", finalE, finalE*100);
-
-        String resultado = (finalP > finalE) ? "p" : "e";
-        String etiqueta = resultado.equals("p") ? "VENENOSO (Poisonous) - ¡PELIGROSO!" : "COMESTIBLE (Edible) - Seguro";
-
-        System.out.println("\nPREDICCIÓN FINAL: Clase = " + resultado);
-        System.out.println("RECOMENDACIÓN: " + etiqueta);
-
-        return resultado;
+    private double obtenerProbabilidad(Map<String, Integer> mapa, String valor, int totalClase) {
+        int count = mapa.getOrDefault(valor, 0);
+        if (count == 0) return 0.0001; // Suavizado simple para evitar multiplicación por cero
+        return (double) count / totalClase;
     }
 }

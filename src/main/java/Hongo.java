@@ -1,8 +1,8 @@
 import java.util.Arrays;
 
 public class Hongo {
-    private String clase; // 'e' (edible) o 'p' (poisonous)
-    private String[] atributos; // Las 22 características
+    private String clase;
+    private String[] atributos;
 
     public Hongo(String clase, String[] atributos) {
         this.clase = clase;
